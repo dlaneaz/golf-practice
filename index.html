@@ -1,1 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
+<!-- Force browser to always fetch latest version -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
+<title>Golf Practice — Safe Mode</title>
+<style>
+  body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial; margin:0; background:#f7f8fa; color:#0f1220; }
+  header { background:#0f1220; color:#fff; padding:14px 16px; position:sticky; top:0; }
+  h1 { font-size:18px; margin:0; }
+  main { max-width: 680px; margin: 0 auto; padding: 16px; }
+  .btn { display:inline-block; padding: 14px 16px; border-radius:12px; border:0; font-weight:800; font-size:16px; margin:6px 4px; }
+  .primary { background:#2b6df2; color:#fff; }
+  .flat { background:#eceff5; }
+  .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#edf0f6; color:#394258; font-size:12px; margin-left:6px; }
+  .card { background:#fff; border-radius:12px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:12px; }
+  .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .timer { font-variant-numeric: tabular-nums; font-weight:900; font-size:40px; margin-top:6px; }
+  .bar { height:12px; background:#e7ebf3; border-radius:999px; overflow:hidden; margin-top:8px; }
+  .bar span { display:block; height:100%; width:0%; background:#2b6df2; }
+  ul { margin:8px 0 0 20px; }
+</style>
+</head>
+<body>
+<header><h1>Golf Practice — Safe Mode</h1></header>
+<main>
+  <div class="card">
+    <div class="row">
+      <button class="btn primary" id="generateBtn">Generate Drills</button>
+      <button class="btn flat" id="startBtn">Start</button>
+      <button class="btn flat" id="pauseBtn">Pause</button>
+      <button class="btn flat" id="skipBtn">Skip</button>
+      <span class="pill" id="status">Ready</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Drills</strong>
+    <div id="drills"></div>
+  </div>
+
+  <div class="card">
+    <strong>Timer</strong>
+    <div class="timer" id="timer">00:00</div>
+    <div class="bar"><span id="bar"></span></div>
+  </div>
+</main>
+
+<script>
+var session = { drills: [], i:0, remaining:0, total:0, running:false };
+function $(id){ return document.getElementById(id); }
+function setStatus(msg){ $("status").textContent = msg; }
+function generate(){
+  session.drills = [
+    {cat:"Range", name:"Warm-Up Ladder", secs:60},
+    {cat:"Short Game", name:"Landing Towel", secs:60},
+    {cat:"Putting", name:"Gate Start-Line", secs:60}
+  ];
+  session.i = 0;
+  session.total = session.drills.reduce((a,b)=>a+b.secs,0);
+  session.remaining = session.drills[0].secs;
+  renderDrills(); updateTimer(); setStatus("Drills generated");
+}
+function renderDrills(){
+  var html = "<ul>";
+  session.drills.forEach(function(d){ html += "<li><strong>"+d.cat+":</strong> "+d.name+" ("+(d.secs/60)+" min)</li>"; });
+  html += "</ul>"; $("drills").innerHTML = html;
+}
+var handle = null;
+function start(){
+  if (!session.drills.length) generate();
+  if (session.running) return;
+  session.running = true; clearInterval(handle);
+  setStatus("Running — " + session.drills[session.i].name);
+  handle = setInterval(tick, 1000);
+}
+function pause(){ if (!session.running) return; session.running = false; clearInterval(handle); setStatus("Paused"); }
+function skip(){
+  session.i++;
+  if (session.i >= session.drills.length){ finish(); return; }
+  session.remaining = session.drills[session.i].secs;
+  setStatus("Skipped → " + session.drills[session.i].name); updateTimer();
+}
+function tick(){
+  session.remaining--;
+  if (session.remaining <= 0){
+    session.i++;
+    if (session.i >= session.drills.length){ finish(); return; }
+    session.remaining = session.drills[session.i].secs;
+    setStatus("Next → " + session.drills[session.i].name);
+  }
+  updateTimer();
+}
+function finish(){ clearInterval(handle); session.running = false; setStatus("Session complete 🎉"); $("timer").textContent="00:00"; $("bar").style.width="100%"; }
+function fmt(s){ if (s<0) s=0; var m=(s/60)|0, ss=s%60; return String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0"); }
+function updateTimer(){
+  $("timer").textContent = fmt(session.remaining);
+  var elapsed = 0; for (var j=0;j<session.i;j++) elapsed += session.drills[j].secs;
+  var currentElapsed = session.drills[session.i] ? (session.drills[session.i].secs - session.remaining) : 0;
+  var totalElapsed = elapsed + currentElapsed;
+  var total = session.drills.reduce((a,b)=>a+b.secs,0);
+  $("bar").style.width = (total? (100*totalElapsed/total):0) + "%";
+}
+$("generateBtn").addEventListener("click", function(e){ e.preventDefault(); generate(); }, {passive:false});
+$("startBtn").addEventListener("click", function(e){ e.preventDefault(); start(); }, {passive:false});
+$("pauseBtn").addEventListener("click", function(e){ e.preventDefault(); pause(); }, {passive:false});
+$("skipBtn").addEventListener("click", function(e){ e.preventDefault(); skip(); }, {passive:false});
+["generateBtn","startBtn","pauseBtn","skipBtn"].forEach(function(id){
+  $(id).addEventListener("touchstart", function(e){
+    e.preventDefault();
+    if (id==="generateBtn") generate();
+    if (id==="startBtn") start();
+    if (id==="pauseBtn") pause();
+    if (id==="skipBtn") skip();
+  }, {passive:false});
+});
+generate();
+</script>
+</body>
+</html>
