@@ -1,1 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<!-- Always fetch latest -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Golf Practice Game — Pro Mobile</title>
+<style>
+  :root { --gap:14px; --radius:12px; --ink:#0f0f12; --muted:#666; --line:#e9e9ee; --bg:#f6f7fb; --brand:#2b6df2; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial; background:linear-gradient(180deg,#fff,#f6f7fb); color:var(--ink); padding-bottom:88px; }
+  header { padding:16px; background:#0f0f12; color:#fff; position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:18px; }
+  header .sub { opacity:.8; font-size:12px; }
+  main { display:grid; grid-template-columns:1fr; gap:var(--gap); padding:var(--gap); max-width:1100px; margin:0 auto; }
+  @media (min-width:980px){ main{ grid-template-columns:320px 1fr; } }
+  .panel { background:#fff; border-radius:var(--radius); box-shadow:0 6px 24px rgba(15,17,24,.06), 0 1px 2px rgba(15,17,24,.06); }
+  .inner { padding:14px; }
+  h2 { font-size:16px; margin:0 0 8px 0; }
+  label { display:block; margin:10px 0 6px; font-weight:600; font-size:13px; }
+  select,input[type="text"] { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:16px; background:#fff; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .btn { padding:14px 16px; border:0; border-radius:12px; font-weight:800; font-size:16px; cursor:pointer; touch-action:manipulation; }
+  .btn.primary { background:var(--brand); color:#fff; }
+  .btn.flat { background:#f0f1f5; }
+  .btn.ghost { background:#eef3ff; color:#173e96; }
+  .btn:disabled { opacity:.5; }
+  .buttons-stack .btn { flex:1 1 auto; min-width:44%; }
+  @media (max-width:480px){ .buttons-stack .btn { width:100%; } }
+  .pill { padding:6px 10px; border-radius:999px; background:#f0f2f7; color:#394258; font-size:12px; }
+  .hint { color:var(--muted); font-size:13px; }
+  .section-title { margin:4px 0 8px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; font-size:12px; color:#3f4658; }
+  .task { border:1px dashed var(--line); padding:12px; border-radius:10px; margin:8px 0; }
+  .task strong { font-weight:800; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:var(--gap); }
+  .timer { font-variant-numeric: tabular-nums; font-weight:900; font-size:40px; margin-top:6px; }
+  .bar { height:12px; background:#edf0f7; border-radius:999px; overflow:hidden; }
+  .bar > span { display:block; height:100%; width:0%; background:linear-gradient(90deg,#2b6df2,#67b2f9); transition:width .25s ease; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  th,td { text-align:left; padding:12px 8px; border-bottom:1px solid var(--line); font-size:14px; }
+  .right { text-align:right; }
+  .actionbar { position:fixed; left:0; right:0; bottom:0; z-index:20; background:rgba(255,255,255,.98); border-top:1px solid var(--line); padding:10px 12px; backdrop-filter:saturate(140%) blur(8px); }
+  .actionbar .row { justify-content:space-between; }
+  .actionbar .btn { flex:1 1 auto; margin:0 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Golf Practice Game — Pro Mobile</h1>
+  <div class="sub">Randomized drills • Timer • Scoring • History</div>
+</header>
 
+<main>
+  <!-- Left controls -->
+  <aside class="panel">
+    <div class="inner">
+      <h2>Session Setup</h2>
+      <label>Total duration (minutes)</label>
+      <select id="totalMinutes"><option>30</option><option selected>45</option><option>60</option></select>
+      <label>Focus</label>
+      <select id="focus">
+        <option value="balanced" selected>Balanced</option>
+        <option value="consistency">Consistency</option>
+        <option value="accuracy">Accuracy</option>
+        <option value="shortgame">Short Game</option>
+        <option value="putting">Putting</option>
+      </select>
+      <label>Your name (optional)</label>
+      <input id="playerName" type="text" placeholder="e.g., David">
+      <div class="row buttons-stack" style="margin-top:12px;">
+        <button class="btn primary" id="generateBtn" type="button">Generate Drills</button>
+        <button class="btn flat" id="clearBtn" type="button">Clear History</button>
+      </div>
+      <div class="row" style="margin-top:8px; align-items:center;">
+        <span class="pill" id="sessionIdPill"></span>
+        <span class="hint">Tip: Start will auto-generate if needed.</span>
+      </div>
+
+      <hr style="margin:16px 0; border:none; border-top:1px solid var(--line)">
+
+      <h2>Quick Challenge</h2>
+      <div class="row buttons-stack">
+        <button class="btn ghost" id="dealCardBtn" type="button">Deal Constraint</button>
+        <span id="cardText" class="pill"></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right: drills/timer/scoring/history -->
+  <section class="panel" id="workPanel">
+    <div class="inner">
+      <div class="section-title">Drills</div>
+      <div id="drillsList" class="grid"></div>
+
+      <div class="section-title">Timer</div>
+      <div>
+        <div class="timer" id="timer">00:00</div>
+        <div class="bar"><span id="segBar"></span></div>
+        <div class="bar" style="margin-top:6px;"><span id="overallBar"></span></div>
+        <div class="hint" id="nowPlaying">Tap Start to begin.</div>
+      </div>
+
+      <div class="section-title">Scoring</div>
+      <div id="scoresTableWrap"></div>
+
+      <div class="row buttons-stack" style="margin-top:10px;">
+        <button class="btn primary" id="saveResultsBtn" type="button">Save Results</button>
+        <button class="btn flat" id="exportCsvBtn" type="button">Export CSV</button>
+        <span id="saveStatus" class="pill"></span>
+      </div>
+
+      <div class="section-title">History</div>
+      <table id="historyTable">
+        <thead><tr><th>Date</th><th>Session</th><th>Focus</th><th>Total Points</th><th>Details</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- Sticky bottom controls -->
+<div class="actionbar">
+  <div class="row">
+    <button class="btn flat" type="button" id="pauseBtn">Pause</button>
+    <button class="btn primary" type="button" id="startTimerBtn">Start</button>
+    <button class="btn flat" type="button" id="skipBtn">Skip</button>
+  </div>
+</div>
+
+<script>
+/* ---------- Data ---------- */
+const CHALLENGE_DECK = [
+  "Odd clubs only this segment",
+  "Low flight only (keep it under the wind)",
+  "Two rehearsal swings, eyes-closed contact feel",
+  "Call the shape (fade/draw) before each shot",
+  "One-ball only — no rakes",
+  "Putt looking at the spot (not the ball)",
+  "Land it short and let it roll",
+  "Simulate wind: ±10% yardage",
+  "No flags — use intermediate targets"
+];
+
+const ALL_DRILLS = [
+  {cat:"Range", name:"Warm-Up Ladder", mins:5, focus:"consistency", desc:"Wedge → 8i → 5i → Driver, 70% tempo."},
+  {cat:"Range", name:"9-Ball Matrix", mins:6, focus:"accuracy", desc:"Straight/Draw/Fade windows. Note start lines."},
+  {cat:"Range", name:"Fairway Finder", mins:5, focus:"accuracy", desc:"Pick narrow window. Score hits."},
+  {cat:"Range", name:"Tempo 3-2-1", mins:5, focus:"consistency", desc:"Count 3-2-1 back/through."},
+  {cat:"Range", name:"Wedge Matrix 50/75/100", mins:6, focus:"accuracy", desc:"Flight control. Track proximity."},
+  {cat:"Short Game", name:"Landing Towel", mins:5, focus:"accuracy", desc:"10/20/30 yd towels. Score land-ons."},
+  {cat:"Short Game", name:"One-Ball Scramble", mins:5, focus:"consistency", desc:"Random lies. Play it down."},
+  {cat:"Short Game", name:"Bunker Up/Down", mins:5, focus:"accuracy", desc:"Splash to 6 ft circle; putt out."},
+  {cat:"Short Game", name:"Par-18 (3 holes)", mins:6, focus:"consistency", desc:"Chip/pitch + putt out ×3 spots. Par=6."},
+  {cat:"Putting", name:"Gate Start-Line", mins:5, focus:"consistency", desc:"3 ft gate. Clean strike & start line."},
+  {cat:"Putting", name:"Pace Ladder", mins:5, focus:"accuracy", desc:"10/20/30 ft. Stop within 2 ft."},
+  {cat:"Putting", name:"Pressure Circle", mins:5, focus:"accuracy", desc:"Six 3-footers. Build streaks."},
+  {cat:"Putting", name:"Left/Right Hand Only", mins:4, focus:"consistency", desc:"5 putts each hand for face control."}
+];
+
+/* ---------- Helpers & State ---------- */
+function $(id){ return document.getElementById(id); }
+function newSessionId(){ return "S" + Math.random().toString(36).slice(2,8).toUpperCase(); }
+
+let lastBuckets = null;
+let currentSessionId = "";
+let timer = { segments:[], idx:0, segRemaining:0, running:false, handle:null, totalSecs:0, elapsed:0 };
+
+function pickDrills(totalMinutes, focus){
+  const ratios = {range:0.36, short:0.32, putt:0.32};
+  const t = totalMinutes;
+  const target = {
+    Range: Math.max(8, Math.round(t*ratios.range)),
+    "Short Game": Math.max(8, Math.round(t*ratios.short)),
+    Putting: Math.max(8, Math.round(t*ratios.putt))
+  };
+  if (focus==="consistency") target.Range+=2;
+  if (focus==="accuracy") target.Range+=2;
+  if (focus==="shortgame") target["Short Game"]+=2;
+  if (focus==="putting") target.Putting+=2;
+
+  const buckets = {Range:[], "Short Game":[], Putting:[]};
+  ["Range","Short Game","Putting"].forEach(cat=>{
+    let pool = ALL_DRILLS.filter(d=>d.cat===cat);
+    let sum = 0;
+    while (sum < target[cat] && pool.length){
+      pool.sort((a,b)=>{
+        const af=(a.focus===focus?-1:0), bf=(b.focus===focus?-1:0);
+        return (af-bf) || (a.mins-b.mins) || (a.name.localeCompare(b.name));
+      });
+      const d = pool.shift();
+      if (sum + d.mins <= target[cat] + 2){ buckets[cat].push(d); sum += d.mins; }
+    }
+  });
+  return buckets;
+}
+
+function renderDrills(buckets){
+  const list = $("drillsList"); list.innerHTML = "";
+  Object.keys(buckets).forEach(cat=>{
+    const col = document.createElement("div");
+    col.className = "panel inner"; col.style.padding="12px";
+    col.innerHTML = `<div class="section-title">${cat}</div>`;
+    buckets[cat].forEach(d=>{
+      const div = document.createElement("div");
+      div.className = "task";
+      div.innerHTML = `<strong>${d.name}</strong> <span class="hint">• ${d.mins} min</span><br><span class="hint">${d.desc}</span>`;
+      col.appendChild(div);
+    });
+    list.appendChild(col);
+  });
+}
+
+function renderScoring(buckets, sessionId){
+  const wrap = $("scoresTableWrap");
+  let rows = "", idx = 0;
+  Object.keys(buckets).forEach(cat=>{
+    buckets[cat].forEach(d=>{
+      const id = `r${idx++}`;
+      rows += `<tr>
+        <td>${cat}</td><td>${d.name}</td><td class="right">${d.mins}</td>
+        <td><input type="number" min="0" id="${id}_attempts" placeholder="Attempts"></td>
+        <td><input type="number" min="0" id="${id}_success" placeholder="Success"></td>
+        <td class="right" id="${id}_points">0</td>
+      </tr>`;
+    });
+  });
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Category</th><th>Drill</th><th class="right">Min</th><th>Attempts</th><th>Success</th><th class="right">Points</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><th colspan="5" class="right">Total Points</th><th class="right" id="totalPts">0</th></tr></tfoot>
+  </table>`;
+
+  wrap.oninput = function(){
+    let total = 0;
+    for (let i=0;i<idx;i++){
+      const a = Number($(`r${i}_attempts`).value||0);
+      const s = Number($(`r${i}_success`).value||0);
+      let pts = s*2 + (a>0 ? (s/a)*10 : 0);
+      pts = Math.round(pts);
+      $(`r${i}_points`).textContent = pts;
+      total += pts;
+    }
+    $("totalPts").textContent = total;
+  };
+}
+
+/* ---------- Timer ---------- */
+function flattenSegments(buckets){
+  const segs = [];
+  Object.keys(buckets).forEach(cat=> buckets[cat].forEach(d=> segs.push({cat,name:d.name,secs:d.mins*60})));
+  return segs;
+}
+function fmt(s){ s=Math.max(0,s); const m=(s/60)|0, ss=s%60; return String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0"); }
+function updateTimerUI(){
+  $("timer").textContent = fmt(timer.segRemaining);
+  const seg = timer.segments[timer.idx];
+  const segDur = seg ? seg.secs : 1;
+  $("segBar").style.width = (100*(1 - timer.segRemaining/segDur)) + "%";
+  $("overallBar").style.width = (100*(timer.elapsed/Math.max(1,timer.totalSecs))) + "%";
+  $("nowPlaying").textContent = seg ? (seg.cat + " — " + seg.name) : "Session ready. Tap Start.";
+}
+function initTimer(buckets){
+  timer.segments = flattenSegments(buckets);
+  timer.idx = 0;
+  timer.totalSecs = timer.segments.reduce((a,b)=>a+b.secs,0);
+  timer.elapsed = 0;
+  timer.segRemaining = timer.segments[0] ? timer.segments[0].secs : 0;
+  updateTimerUI();
+}
+function startTimer(){
+  if (!timer.segments.length) return;
+  timer.running = true;
+  clearInterval(timer.handle);
+  timer.handle = setInterval(()=>{
+    timer.segRemaining--; timer.elapsed++; updateTimerUI();
+    if (timer.segRemaining <= 0){
+      timer.idx++;
+      if (timer.idx >= timer.segments.length){
+        clearInterval(timer.handle); timer.running = false;
+        $("nowPlaying").textContent = "Session complete 🎉"; return;
+      }
+      timer.segRemaining = timer.segments[timer.idx].secs; updateTimerUI();
+    }
+  }, 1000);
+}
+function togglePause(){
+  if (!timer.segments.length) return;
+  if (timer.running){ clearInterval(timer.handle); timer.running=false; }
+  else { startTimer(); }
+}
+function skipSeg(){
+  if (!timer.segments.length) return;
+  timer.idx++;
+  if (timer.idx >= timer.segments.length){
+    clearInterval(timer.handle); timer.running=false; $("nowPlaying").textContent="Session complete 🎉"; updateTimerUI(); return;
+  }
+  timer.segRemaining = timer.segments[timer.idx].secs; updateTimerUI();
+  if (!timer.running) startTimer();
+}
+
+/* ---------- History & Export ---------- */
+function saveResults(sessionId, focus){
+  const tbody = document.querySelector("#scoresTableWrap tbody");
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  let details = [], total = 0;
+  rows.forEach(tr=>{
+    const tds = tr.querySelectorAll("td");
+    const cat = tds[0].textContent, name = tds[1].textContent;
+    const mins = Number(tds[2].textContent);
+    const attempts = Number(tds[3].querySelector("input").value||0);
+    const success = Number(tds[4].querySelector("input").value||0);
+    const points = Number(tds[5].textContent||0);
+    details.push({cat,name,mins,attempts,success,points}); total += points;
+  });
+  const rec = { id: sessionId, when: new Date().toISOString(), focus, total, details };
+  const key = "golf-practice-history";
+  const arr = JSON.parse(localStorage.getItem(key)||"[]"); arr.unshift(rec);
+  localStorage.setItem(key, JSON.stringify(arr)); return rec;
+}
+function refreshHistory(){
+  const key = "golf-practice-history";
+  const arr = JSON.parse(localStorage.getItem(key)||"[]");
+  const tbody = document.querySelector("#historyTable tbody"); if (!tbody) return;
+  tbody.innerHTML = "";
+  arr.forEach(rec=>{
+    const date = new Date(rec.when).toLocaleString();
+    const tr = document.createElement("tr");
+    const btn = document.createElement("button");
+    btn.textContent = "View"; btn.className = "btn flat";
+    btn.onclick = ()=>alert(JSON.stringify(rec.details, null, 2));
+    const tdBtn = document.createElement("td"); tdBtn.appendChild(btn);
+    tr.innerHTML = `<td>${date}</td><td>${rec.id}</td><td>${rec.focus}</td><td>${rec.total}</td>`;
+    tr.appendChild(tdBtn); tbody.appendChild(tr);
+  });
+}
+function exportCsv(){
+  const key = "golf-practice-history";
+  const arr = JSON.parse(localStorage.getItem(key)||"[]");
+  if (!arr.length){ alert("No history to export yet."); return; }
+  const rows = [["date","session_id","focus","drill_category","drill_name","minutes","attempts","success","points","total_session_points"]];
+  arr.forEach(rec => rec.details.forEach(d => rows.push([rec.when, rec.id, rec.focus, d.cat, d.name, d.mins, d.attempts, d.success, d.points, rec.total])));
+  const csv = rows.map(r => r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"}); const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "golf_practice_history.csv"; a.click(); URL.revokeObjectURL(url);
+}
+
+/* ---------- Wire up buttons (click + touch) ---------- */
+function bindBoth(id, fn){
+  const el = $(id); if (!el) return;
+  const h = (e)=>{ e.preventDefault(); fn(); };
+  el.addEventListener("click", h, {passive:false});
+  el.addEventListener("touchstart", h, {passive:false});
+}
+
+function generate(){
+  const total = Number($("totalMinutes").value);
+  const focus = $("focus").value;
+  currentSessionId = newSessionId();
+  $("sessionIdPill").textContent = currentSessionId;
+  const buckets = pickDrills(total, focus);
+  lastBuckets = buckets;
+  renderDrills(buckets);
+  renderScoring(buckets, currentSessionId);
+  initTimer(buckets);
+  refreshHistory();
+}
+
+/* init */
+(function bootstrap(){
+  currentSessionId = newSessionId();
+  $("sessionIdPill").textContent = currentSessionId;
+
+  bindBoth("generateBtn", generate);
+  bindBoth("dealCardBtn", ()=>{ $("cardText").textContent = CHALLENGE_DECK[Math.floor(Math.random()*CHALLENGE_DECK.length)]; });
+  bindBoth("startTimerBtn", ()=>{ if (!lastBuckets) generate(); startTimer(); });
+  bindBoth("pauseBtn", togglePause);
+  bindBoth("skipBtn", skipSeg);
+  bindBoth("saveResultsBtn", ()=>{
+    const focus = $("focus").value;
+    if (!currentSessionId) currentSessionId = newSessionId();
+    saveResults(currentSessionId, focus);
+    $("saveStatus").textContent = "Saved ✔";
+    setTimeout(()=> $("saveStatus").textContent = "", 1800);
+    refreshHistory();
+  });
+  bindBoth("exportCsvBtn", exportCsv);
+  bindBoth("clearBtn", ()=>{
+    if (confirm("Clear all saved practice history from this browser?")){
+      localStorage.removeItem("golf-practice-history"); refreshHistory();
+    }
+  });
+
+  refreshHistory();
+})();
+</script>
+</body>
+</html>
