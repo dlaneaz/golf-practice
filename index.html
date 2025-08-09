@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+<script>
+// Auto-cache-bust ONCE if URL has no ?v=... (prevents stale pages on iPhone)
+(function () {
+  if (!sessionStorage.getItem('v_applied') && !/[?&]v=/.test(location.search)) {
+    sessionStorage.setItem('v_applied', '1');
+    const d = new Date();
+    const v = d.getFullYear().toString() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+    location.replace(location.pathname + '?v=' + v + location.hash);
+  }
+})();
+
+// Register service worker (for offline + faster subsequent loads)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+</script>
 <head>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2b6df2">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <!-- Always fetch latest -->
